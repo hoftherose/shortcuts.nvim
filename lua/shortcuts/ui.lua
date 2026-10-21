@@ -23,8 +23,12 @@ function M.setup(project)
         M.popup:unmount()
     end)
     M.popup:on(event.BufWinEnter, function()
-        vim.cmd(':silent 0read ' .. M.project)
-    end, { once = true })
+        local lines = {}
+        if vim.fn.filereadable(M.project) == 1 then
+            lines = vim.fn.readfile(M.project)
+        end
+        vim.api.nvim_buf_set_lines(M.popup.bufnr, 0, -1, false, lines)
+    end)
     M.layout = Layout(
         M.layout_params,
         Layout.Box({
