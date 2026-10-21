@@ -3,22 +3,16 @@ local ui = require('shortcuts.ui')
 
 local Shortcuts = {
     shortcuts = {},
-    defaults_table = template.defaults,
+    defaults_table = template.generate_defaults(template.defaults),
     plugin_path = vim.fn.expand('$HOME/.local/share/nvim/shortcuts/'),
     prefix = '<leader>a'
-}
-
-local default_cache = {
-    cached = false,
-    value = nil
 }
 
 local commands_registered = false
 
 function Shortcuts.is_invalid_shortcut(mode, keybind, shortcut)
-    -- maparg is a single C call; no Ex-command spawn needed.
-    -- Returns '' (truthy in Lua!) when absent, so compare explicitly.
-    if vim.fn.maparg(Shortcuts.prefix .. keybind, mode) ~= '' then
+    local valid_modes = { "n", "v", "o", "i", "c", "s", "x", "l", "t"}
+    if not vim.iter(valid_modes):find(mode) then
         return true
     end
     if shortcut == nil then
@@ -30,26 +24,17 @@ function Shortcuts.is_invalid_shortcut(mode, keybind, shortcut)
     return false
 end
 
-function Shortcuts.ensure_default_shortcuts()
-    if not default_cache.cached then
-        default_cache.value = template.generate_defaults(Shortcuts.defaults_table)
-        default_cache.cached = true
-    end
-    return default_cache.value
-end
-
 function Shortcuts.get_project_shortcuts()
     local fm = require('shortcuts.utils.files')
     local fn = Shortcuts.get_current_project() .. '.json'
-    if vim.fn.filereadable(Shortcuts.plugin_path .. fn) ~= 1 then
-        -- First run in this project: materialize the defaults on disk.
-        local defaults = Shortcuts.ensure_default_shortcuts()
+    if fm.is_empty(fn) then
+        local defaults = Shortcuts.defaults_table
         fm.touch(fn)
         fm.fill_template(fn, defaults)
         return defaults
     end
     if fm.is_invalid_json(fn) then
-        return Shortcuts.ensure_default_shortcuts()
+        return Shortcuts.defaults_table
     end
     return fm.get_json(fn)
 end
@@ -133,8 +118,6 @@ function Shortcuts.setup(opts)
             )
         end
     end
-    default_cache.cached = false
-    default_cache.value = nil
     Shortcuts.set_shortcuts()
 end
 
